@@ -1,0 +1,13 @@
+variables:
+  vmImageName: 'windows-latest'
+
+jobs:
+- job: CheckImage
+  displayName: Show selected image
+  pool:
+    vmImage: $(vmImageName)
+  steps:
+    - script: |
+        echo "Using vmImage: $(vmImageName)"
+        echo "Agent OS: $AGENT_OS"
+      displayName: 'Print Image Info'
