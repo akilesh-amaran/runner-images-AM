@@ -1,12 +1,13 @@
-name: Test Windows Latest
-
-on:
-  workflow_dispatch:
+variables:
+  vmImageName: 'windows-latest'
 
 jobs:
-  test:
-    runs-on: windows-latest
-    steps:
-      - name: Show system info
-        run: systeminfo
-
+- job: CheckImage
+  displayName: Show selected image
+  pool:
+    vmImage: $(vmImageName)
+  steps:
+    - script: |
+        echo "Using vmImage: $(vmImageName)"
+        echo "Agent OS: $AGENT_OS"
+      displayName: 'Print Image Info'
