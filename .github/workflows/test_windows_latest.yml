@@ -1,7 +1,11 @@
-variables:
-  vmImage: 'windows-latest'
+name: Test Windows Latest
+
+on:
+  workflow_dispatch:
 
 jobs:
-- job: Build
-  pool:
-    vmImage: $(vmImage)
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Check runner version
+        run: systeminf
