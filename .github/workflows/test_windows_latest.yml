@@ -1,13 +1,16 @@
-variables:
-  vmImageName: 'windows-latest'
+name: Show Actual Windows Image
+
+on:
+  workflow_dispatch:
 
 jobs:
-- job: CheckImage
-  displayName: Show selected image
-  pool:
-    vmImage: $(vmImageName)
-  steps:
-    - script: |
-        echo "Using vmImage: $(vmImageName)"
-        echo "Agent OS: $AGENT_OS"
-      displayName: 'Print Image Info'
+  check-image:
+    runs-on: windows-latest
+
+    steps:
+      - name: Print runner image info
+        shell: pwsh
+        run: |
+          Write-Output "Agent OS       : $env:AGENT_OS"
+          Write-Output "Image OS Label : $env:ImageOS"
+          Write-Output "Image Version  : $env:ImageVersion"
