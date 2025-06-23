@@ -1,0 +1,49 @@
+name: Deploy DB to Dev
+
+on:
+  workflow_dispatch:
+
+env:
+  DBBuildImage: windows-latest
+
+jobs:
+  deploy-db:
+    name: Deploy DB to Dev
+    runs-on: ${{ env.DBBuildImage }}
+
+    environment:
+      name: <env name>
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Download DB Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ secrets.DB_ARTIFACT_NAME }}
+          path: ${{ github.workspace }}
+
+      - name: Extract DACPAC ZIP
+        shell: pwsh
+        run: |
+          $zipFile = Get-ChildItem -Path "${{ github.workspace }}" -Recurse -Filter "${{ secrets.DB_ZIP_NAME }}.zip" | Select-Object -First 1
+          if ($zipFile -eq $null) {
+            throw "ZIP file not found"
+          }
+          Expand-Archive -Path $zipFile.FullName -DestinationPath "${{ github.workspace }}/db_output" -Force
+
+      - name: Deploy DACPAC to Azure SQL
+        uses: Azure/sql-action@v2
+        with:
+          server-name: <servername>.database.windows.net
+          connection-string: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+          dacpac-package: "${{ github.workspace }}/db_output/*.dacpac"
+          arguments: >
+            /p:BlockOnPossibleDataLoss=True
+            /p:CompareUsingTargetCollation=True
+            /p:IgnorePermissions=True
+            /p:DropStatisticsNotInSource=False
+            /p:IgnoreRoleMembership=True
