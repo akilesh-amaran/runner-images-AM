@@ -1,0 +1,24 @@
+name: Install Inno Setup on Windows 2025
+
+on:
+  workflow_dispatch:
+
+jobs:
+  install-inno-setup:
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download Inno Setup Installer
+        run: |
+          Invoke-WebRequest -Uri "https://jrsoftware.org/download.php/ispack.exe" -OutFile "$env:TEMP\ispack.exe"
+
+      - name: Install Inno Setup Silently
+        run: |
+          Start-Process -FilePath "$env:TEMP\ispack.exe" -ArgumentList "/VERYSILENT", "/NORESTART", "/SP-" -Wait
+
+      - name: Verify Inno Setup Installation
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /?
