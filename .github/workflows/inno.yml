@@ -7,6 +7,10 @@ jobs:
     runs-on: windows-2025
 
     steps:
+      - name: Start timer
+        id: start
+        run: echo "start_time=$(Get-Date -Format o)" >> $env:GITHUB_ENV
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -18,6 +22,21 @@ jobs:
         run: |
           Start-Process -FilePath "$env:TEMP\ispack.exe" -ArgumentList "/VERYSILENT", "/NORESTART", "/SP-" -Wait
 
-      - name: Verify Inno Setup Installation
+      - name: Verify ISCC.exe exists and get file size
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /?
+          $exePath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (Test-Path $exePath) {
+            $size = (Get-Item $exePath).Length / 1MB
+            Write-Output "✅ Inno Setup installed successfully."
+            Write-Output "📦 ISCC.exe size: $([math]::Round($size, 2)) MB"
+          } else {
+            Write-Error "❌ ISCC.exe not found at expected path."
+            exit 1
+          }
+
+      - name: End timer and log duration
+        run: |
+          $start = [datetime]::Parse($env:start_time)
+          $end = Get-Date
+          $duration = $end - $start
+          Write-Output "🕒 Total runtime: $($duration.ToString())"
