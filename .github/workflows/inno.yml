@@ -1,7 +1,6 @@
 name: Install Inno Setup on Windows 2025
 
-on:
-  workflow_dispatch:
+on: [push, pull_request]
 
 jobs:
   install-inno-setup:
