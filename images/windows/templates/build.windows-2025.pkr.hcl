@@ -1,3 +1,6 @@
+locals {
+  temp_dir = "C:\\temp"
+}
 build {
   sources = ["source.azure-arm.image"]
   name = "windows-2025"

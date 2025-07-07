@@ -1,3 +1,6 @@
+locals {
+  temp_dir = "D:\\temp"
+}
 build {
   sources = ["source.azure-arm.image"]
   name = "windows-2019"
