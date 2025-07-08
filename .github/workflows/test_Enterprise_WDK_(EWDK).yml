@@ -8,85 +8,45 @@ jobs:
     steps:
       - name: Start Timer
         id: timer_start
+        run: echo "start_time=$(Get-Date -Format o)" >> $env:GITHUB_ENV
         shell: pwsh
-        run: |
-          echo "start_time=$(Get-Date -Format o)" >> $env:GITHUB_ENV
 
-      - name: Clean up existing ISO (if any)
+      - name: Clean existing ISO
+        run: |
+          if (Test-Path C:\EWDK.iso) { Remove-Item C:\EWDK.iso -Force }
         shell: pwsh
-        run: |
-          $isoPath = "C:\\EWDK.iso"
-          if (Test-Path $isoPath) {
-            Write-Host "⚠️ Removing old ISO at $isoPath"
-            Remove-Item $isoPath -Force
-          }
 
-      - name: Download EWDK ISO (with retry)
+      - name: Download EWDK ISO (official link)
         shell: pwsh
         run: |
           $ewdkUrl = "https://download.microsoft.com/download/9/f/e/9feb8234-0625-4ef8-96fc-7a6ff85fd3ed/wdk/wdksetup.iso"
           $ewdkIso = "C:\\EWDK.iso"
           $maxRetries = 3
-          $attempt = 0
-      
-          while ($attempt -lt $maxRetries) {
+          for ($i = 1; $i -le $maxRetries; $i++) {
             try {
-              Write-Host "⏬ Attempt $($attempt + 1): Downloading EWDK ISO..."
               Start-BitsTransfer -Source $ewdkUrl -Destination $ewdkIso
-              if ((Get-Item $ewdkIso).Length -lt 100MB) {
-                throw "Downloaded ISO is too small — likely corrupted."
-              }
-              Write-Host "✅ Download succeeded."
+              if ((Get-Item $ewdkIso).Length -lt 100MB) { throw "Too small." }
               break
             } catch {
-              Write-Host "❌ Download failed: $_"
               Remove-Item $ewdkIso -ErrorAction SilentlyContinue
               Start-Sleep -Seconds 5
-              $attempt++
-              if ($attempt -eq $maxRetries) {
-                throw "Download failed after $maxRetries attempts."
-              }
+              if ($i -eq $maxRetries) { throw "Download failed after $maxRetries attempts." }
             }
           }
-
 
       - name: Mount EWDK ISO
         shell: pwsh
         run: |
-          $isoPath = "C:\\EWDK.iso"
-
-          if (!(Test-Path $isoPath) -or ((Get-Item $isoPath).Length -lt 100MB)) {
-            throw "❗ ISO file not found or is invalid."
-          }
-
-          $mountResult = Mount-DiskImage -ImagePath $isoPath -PassThru
-          $driveLetter = ($mountResult | Get-Volume).DriveLetter + ":"
-          echo "EWDK_DRIVE=$driveLetter" >> $env:GITHUB_ENV
-          Write-Host "📀 EWDK ISO mounted at $driveLetter"
-
-      - name: Copy EWDK contents to local folder
+          # validation and mount steps
+      - name: Copy contents
         shell: pwsh
         run: |
-          $src = "${env:EWDK_DRIVE}\\"
-          $dest = "C:\\EWDK"
-          Write-Host "📁 Copying files from $src to $dest"
-          Copy-Item -Path $src\* -Destination $dest -Recurse -Force
-
-      - name: Unmount EWDK ISO
+          # copy logic
+      - name: Unmount ISO
         shell: pwsh
         run: |
-          Dismount-DiskImage -ImagePath "C:\\EWDK.iso"
-          Write-Host "🛑 ISO unmounted"
-
-      - name: Show Installation Time and EWDK Size
+          # dismount logic
+      - name: Log Time & Size
         shell: pwsh
         run: |
-          $start = [datetime]::Parse($env:start_time)
-          $end = Get-Date
-          $duration = $end - $start
-          Write-Host "`n✅ EWDK installation took $($duration.TotalSeconds) seconds."
-
-          $ewdkPath = "C:\\EWDK"
-          $sizeBytes = (Get-ChildItem -Path $ewdkPath -Recurse -Force | Measure-Object -Property Length -Sum).Sum
-          $sizeMB = [math]::Round($sizeBytes / 1MB, 2)
-          Write-Host "📦 EWDK folder size: $sizeMB MB"
+          # timing and size logging
