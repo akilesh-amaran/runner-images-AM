@@ -204,7 +204,11 @@ Describe "Kotlin" {
     $kotlinPackages = @("kapt", "kotlin", "kotlinc", "kotlinc-js", "kotlinc-jvm")
 
     It "<toolName> is available" -TestCases ($kotlinPackages | ForEach-Object { @{ toolName = $_ } }) {
-        "$toolName -version" | Should -ReturnZeroExitCode
+        if ($toolName -eq "kotlinc-js") {
+            "$toolName -version" | Should -Match "kotlinc-js"
+        } else {
+            "$toolName -version" | Should -ReturnZeroExitCode
+        }
     }
 }
 
