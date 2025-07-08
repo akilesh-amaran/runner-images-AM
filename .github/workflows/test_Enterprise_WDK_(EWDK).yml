@@ -24,15 +24,15 @@ jobs:
       - name: Download EWDK ISO (with retry)
         shell: pwsh
         run: |
-          $ewdkUrl = "https://go.microsoft.com/fwlink/?linkid=2196220"  # EWDK 10.1.26100.2454
+          $ewdkUrl = "https://download.microsoft.com/download/9/f/e/9feb8234-0625-4ef8-96fc-7a6ff85fd3ed/wdk/wdksetup.iso"
           $ewdkIso = "C:\\EWDK.iso"
           $maxRetries = 3
           $attempt = 0
-
+      
           while ($attempt -lt $maxRetries) {
             try {
               Write-Host "⏬ Attempt $($attempt + 1): Downloading EWDK ISO..."
-              Invoke-WebRequest -Uri $ewdkUrl -OutFile $ewdkIso -UseBasicParsing
+              Start-BitsTransfer -Source $ewdkUrl -Destination $ewdkIso
               if ((Get-Item $ewdkIso).Length -lt 100MB) {
                 throw "Downloaded ISO is too small — likely corrupted."
               }
@@ -48,6 +48,7 @@ jobs:
               }
             }
           }
+
 
       - name: Mount EWDK ISO
         shell: pwsh
