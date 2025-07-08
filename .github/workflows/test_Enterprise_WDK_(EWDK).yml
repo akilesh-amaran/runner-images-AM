@@ -1,0 +1,53 @@
+name: Setup EWDK
+
+on: [push, pull_request]
+
+jobs:
+  install-ewdk:
+    runs-on: windows-latest
+    steps:
+      - name: Start Timer
+        id: timer_start
+        run: |
+          echo "start_time=$(Get-Date -Format o)" >> $env:GITHUB_ENV
+
+      - name: Download EWDK ISO
+        run: |
+          $ewdkUrl = "https://go.microsoft.com/fwlink/?linkid=2196220"  # EWDK 10.1.26100.2454
+          $ewdkIso = "C:\\EWDK.iso"
+          Invoke-WebRequest -Uri $ewdkUrl -OutFile $ewdkIso
+        shell: pwsh
+
+      - name: Mount EWDK ISO
+        run: |
+          $isoPath = "C:\\EWDK.iso"
+          $mountResult = Mount-DiskImage -ImagePath $isoPath -PassThru
+          $driveLetter = ($mountResult | Get-Volume).DriveLetter + ":"
+          echo "EWDK_DRIVE=$driveLetter" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Copy EWDK to working directory
+        run: |
+          $src = "${env:EWDK_DRIVE}\\"
+          $dest = "C:\\EWDK"
+          Copy-Item -Path $src\* -Destination $dest -Recurse -Force
+        shell: pwsh
+
+      - name: Unmount EWDK ISO
+        run: |
+          Dismount-DiskImage -ImagePath "C:\\EWDK.iso"
+        shell: pwsh
+
+      - name: End Timer and Show Installation Time & Size
+        run: |
+          $start = [datetime]::Parse($env:start_time)
+          $end = Get-Date
+          $duration = $end - $start
+          Write-Host "`n✅ EWDK installation took $($duration.TotalSeconds) seconds."
+
+          # Calculate directory size in MB
+          $ewdkPath = "C:\\EWDK"
+          $sizeBytes = (Get-ChildItem -Path $ewdkPath -Recurse -Force | Measure-Object -Property Length -Sum).Sum
+          $sizeMB = [math]::Round($sizeBytes / 1MB, 2)
+          Write-Host "📦 EWDK folder size: $sizeMB MB"
+        shell: pwsh
