@@ -24,36 +24,54 @@ jobs:
           Write-Host "Downloading from $url"
           Invoke-WebRequest -Uri $url -OutFile kotlin-compiler.zip
 
-      - name: Run Kotlin CLI Tests (Debug)
+      - name: Extract Kotlin Compiler and Run CLI Tests
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
+          # Extract the ZIP
+          Expand-Archive kotlin-compiler.zip -DestinationPath "$env:RUNNER_TEMP\kotlin"
           $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
+
+          # Add Kotlin bin to PATH for this session
           $env:PATH = "$kotlinBin;$env:PATH"
           Write-Host "PATH set to include Kotlin bin: $kotlinBin"
 
+          # Check tools are visible
+          Write-Host "`nChecking installed Kotlin tools:"
           Get-Command kotlin, kapt, kotlinc, kotlinc-jvm, kotlinc-js -ErrorAction SilentlyContinue | Format-Table
 
+          # Define and run CLI test function
           function Test-CliTool {
               param (
                   [string]$cmd
               )
               Write-Host "`n🔹 Running: $cmd"
-              $parts = $cmd.Split(" ")
-              $output = & $parts 2>&1
-              $exitCode = $LASTEXITCODE
-              Write-Host "Exit Code: $exitCode"
-              Write-Host "Output:`n$output"
 
-              if ($exitCode -ne 0) {
-                  Write-Error "`n❌ $cmd failed with exit code $exitCode"
+              $parts = $cmd.Split(" ")
+              $exe = $parts[0]
+              $args = $parts[1..($parts.Length - 1)]
+
+              try {
+                  $output = & $exe @args 2>&1
+                  $exitCode = $LASTEXITCODE
+                  Write-Host "Exit Code: $exitCode"
+                  Write-Host "Output:`n$output"
+
+                  if ($exitCode -ne 0) {
+                      Write-Error "`n❌ $cmd failed with exit code $exitCode"
+                      exit 1
+                  } else {
+                      Write-Host "`n✅ $cmd passed"
+                  }
+              }
+              catch {
+                  Write-Error "`n❌ $cmd failed to execute: $_"
                   exit 1
-              } else {
-                  Write-Host "`n✅ $cmd passed"
               }
           }
 
+          # Run tests
           Test-CliTool "kapt -version"
           Test-CliTool "kotlin -version"
           Test-CliTool "kotlinc -version"
