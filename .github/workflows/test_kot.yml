@@ -7,23 +7,21 @@ jobs:
     runs-on: windows-2025
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install SDKMAN and Kotlin
-        shell: bash
+      - name: Download Kotlin Compiler (Latest)
+        shell: pwsh
         run: |
-          curl -s "https://get.sdkman.io" | bash
-          source "$HOME/.sdkman/bin/sdkman-init.sh"
-          sdk install kotlin
-          echo "$HOME/.sdkman/candidates/kotlin/current/bin" >> $GITHUB_PATH
+          $url = "https://github.com/JetBrains/kotlin/releases/latest/download/kotlin-compiler.zip"
+          Invoke-WebRequest -Uri $url -OutFile kotlin-compiler.zip
+          Expand-Archive kotlin-compiler.zip -DestinationPath "$env:RUNNER_TEMP\kotlin"
+          $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
+          echo "##[add-path]$kotlinBin"
 
-      - name: Verify Kotlin Binaries Exist
+      - name: Show Kotlin Tools in PATH
         shell: pwsh
         run: |
           Get-Command kotlin, kapt, kotlinc, kotlinc-jvm, kotlinc-js -ErrorAction SilentlyContinue | Format-Table
 
-      - name: Run CLI Tests
+      - name: Run Kotlin CLI Tests
         shell: pwsh
         run: |
           Describe "Kotlin CLI Checks" {
@@ -35,6 +33,18 @@ jobs:
                   "kotlin -version" | Should -ReturnZeroExitCode
               }
 
+              It "kotlinc" {
+                  "kotlinc -version" | Should -ReturnZeroExitCode
+              }
+
+              It "kotlinc-jvm" {
+                  "kotlinc-jvm -version" | Should -ReturnZeroExitCode
+              }
+
+              It "kotlinc-js" {
+                  "kotlinc-js -version" | Should -ReturnZeroExitCode
+              }
+          }
               It "kotlinc" {
                   "kotlinc -version" | Should -ReturnZeroExitCode
               }
