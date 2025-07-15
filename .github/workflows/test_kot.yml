@@ -24,29 +24,24 @@ jobs:
           Write-Host "Downloading from $url"
           Invoke-WebRequest -Uri $url -OutFile kotlin-compiler.zip
 
-      - name: Extract Kotlin Compiler
+      - name: Run Kotlin CLI Tests (Debug)
         shell: pwsh
         run: |
-          Expand-Archive kotlin-compiler.zip -DestinationPath "$env:RUNNER_TEMP\kotlin"
-          $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
-          # Manually prepend the path so it works in the same step
-          $env:PATH = "$kotlinBin;$env:PATH"
+          $ErrorActionPreference = "Stop"
 
+          $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
+          $env:PATH = "$kotlinBin;$env:PATH"
           Write-Host "PATH set to include Kotlin bin: $kotlinBin"
 
-          # Show tools
-          Write-Host "Checking available Kotlin CLI tools:"
           Get-Command kotlin, kapt, kotlinc, kotlinc-jvm, kotlinc-js -ErrorAction SilentlyContinue | Format-Table
-
-          # Run CLI Tests
-          $ErrorActionPreference = "Stop"
 
           function Test-CliTool {
               param (
                   [string]$cmd
               )
               Write-Host "`n🔹 Running: $cmd"
-              $output = & $cmd 2>&1
+              $parts = $cmd.Split(" ")
+              $output = & $parts 2>&1
               $exitCode = $LASTEXITCODE
               Write-Host "Exit Code: $exitCode"
               Write-Host "Output:`n$output"
