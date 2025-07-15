@@ -1,20 +1,35 @@
-name: Check Kotlin CLI Commands
+name: Kotlin CLI Checks on Windows
 
-on: [push, pull_request]
+on: [push ,pull_request] 
 
 jobs:
   test-kotlin-cli:
-    runs-on: windows-2025
+    runs-on: windows-latest
 
     steps:
-      - name: Download Kotlin Compiler (Latest)
+      - name: Get Latest Kotlin Version Tag
+        id: get_kotlin_version
+        shell: bash
+        run: |
+          latest=$(curl -s https://api.github.com/repos/JetBrains/kotlin/releases/latest | jq -r .tag_name)
+          echo "Latest Kotlin version: $latest"
+          echo "version=$latest" >> $GITHUB_OUTPUT
+
+      - name: Download Kotlin Compiler ZIP
         shell: pwsh
         run: |
-          $url = "https://github.com/JetBrains/kotlin/releases/latest/download/kotlin-compiler.zip"
+          $version = '${{ steps.get_kotlin_version.outputs.version }}'
+          $version = $version.TrimStart("v")
+          $url = "https://github.com/JetBrains/kotlin/releases/download/v$version/kotlin-compiler-$version.zip"
+          Write-Host "Downloading from $url"
           Invoke-WebRequest -Uri $url -OutFile kotlin-compiler.zip
+
+      - name: Extract Kotlin Compiler
+        shell: pwsh
+        run: |
           Expand-Archive kotlin-compiler.zip -DestinationPath "$env:RUNNER_TEMP\kotlin"
           $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
-          echo "##[add-path]$kotlinBin"
+          echo "$kotlinBin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
 
       - name: Show Kotlin Tools in PATH
         shell: pwsh
@@ -45,17 +60,3 @@ jobs:
                   "kotlinc-js -version" | Should -ReturnZeroExitCode
               }
           }
-              It "kotlinc" {
-                  "kotlinc -version" | Should -ReturnZeroExitCode
-              }
-
-              It "kotlinc-jvm" {
-                  "kotlinc-jvm -version" | Should -ReturnZeroExitCode
-              }
-
-              It "kotlinc-js" {
-                  "kotlinc-js -version" | Should -ReturnZeroExitCode
-              }
-          }
-        env:
-          PATH: ${{ env.PATH }} # include kotlin in path
