@@ -1,6 +1,6 @@
 name: Kotlin CLI Checks on Windows
 
-on: [push ,pull_request] 
+on: [push, pull_request]
 
 jobs:
   test-kotlin-cli:
@@ -29,31 +29,33 @@ jobs:
         run: |
           Expand-Archive kotlin-compiler.zip -DestinationPath "$env:RUNNER_TEMP\kotlin"
           $kotlinBin = "$env:RUNNER_TEMP\kotlin\kotlinc\bin"
-          echo "$kotlinBin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+          # Manually prepend the path so it works in the same step
+          $env:PATH = "$kotlinBin;$env:PATH"
 
-      - name: Show Kotlin Tools in PATH
-        shell: pwsh
-        run: |
+          Write-Host "PATH set to include Kotlin bin: $kotlinBin"
+
+          # Show tools
+          Write-Host "Checking available Kotlin CLI tools:"
           Get-Command kotlin, kapt, kotlinc, kotlinc-jvm, kotlinc-js -ErrorAction SilentlyContinue | Format-Table
 
-      - name: Run Kotlin CLI Tests (Debug)
-        shell: pwsh
-        run: |
+          # Run CLI Tests
           $ErrorActionPreference = "Stop"
 
           function Test-CliTool {
               param (
                   [string]$cmd
               )
-              Write-Host "Running: $cmd"
+              Write-Host "`n🔹 Running: $cmd"
               $output = & $cmd 2>&1
               $exitCode = $LASTEXITCODE
               Write-Host "Exit Code: $exitCode"
-              Write-Host "Output: $output"
+              Write-Host "Output:`n$output"
 
               if ($exitCode -ne 0) {
-                  Write-Error "$cmd failed with exit code $exitCode"
+                  Write-Error "`n❌ $cmd failed with exit code $exitCode"
                   exit 1
+              } else {
+                  Write-Host "`n✅ $cmd passed"
               }
           }
 
@@ -62,8 +64,3 @@ jobs:
           Test-CliTool "kotlinc -version"
           Test-CliTool "kotlinc-jvm -version"
           Test-CliTool "kotlinc-js -version"
-
-              It "kotlinc-js" {
-                  "kotlinc-js -version" | Should -ReturnZeroExitCode
-              }
-          }
