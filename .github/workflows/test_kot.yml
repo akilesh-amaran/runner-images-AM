@@ -36,25 +36,32 @@ jobs:
         run: |
           Get-Command kotlin, kapt, kotlinc, kotlinc-jvm, kotlinc-js -ErrorAction SilentlyContinue | Format-Table
 
-      - name: Run Kotlin CLI Tests
+      - name: Run Kotlin CLI Tests (Debug)
         shell: pwsh
         run: |
-          Describe "Kotlin CLI Checks" {
-              It "kapt" {
-                  "kapt -version" | Should -ReturnZeroExitCode
-              }
+          $ErrorActionPreference = "Stop"
 
-              It "kotlin" {
-                  "kotlin -version" | Should -ReturnZeroExitCode
-              }
+          function Test-CliTool {
+              param (
+                  [string]$cmd
+              )
+              Write-Host "Running: $cmd"
+              $output = & $cmd 2>&1
+              $exitCode = $LASTEXITCODE
+              Write-Host "Exit Code: $exitCode"
+              Write-Host "Output: $output"
 
-              It "kotlinc" {
-                  "kotlinc -version" | Should -ReturnZeroExitCode
+              if ($exitCode -ne 0) {
+                  Write-Error "$cmd failed with exit code $exitCode"
+                  exit 1
               }
+          }
 
-              It "kotlinc-jvm" {
-                  "kotlinc-jvm -version" | Should -ReturnZeroExitCode
-              }
+          Test-CliTool "kapt -version"
+          Test-CliTool "kotlin -version"
+          Test-CliTool "kotlinc -version"
+          Test-CliTool "kotlinc-jvm -version"
+          Test-CliTool "kotlinc-js -version"
 
               It "kotlinc-js" {
                   "kotlinc-js -version" | Should -ReturnZeroExitCode
