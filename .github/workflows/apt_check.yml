@@ -1,0 +1,21 @@
+name: Test APT on Ubuntu 24.04
+
+on: [push , pull_request]
+jobs:
+  test-apt:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update apt cache
+        run: |
+          sudo apt update
+
+      - name: Install a package (curl)
+        run: |
+          sudo apt install -y curl
+
+      - name: Verify curl installation
+        run: |
+          curl --version
