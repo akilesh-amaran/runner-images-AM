@@ -34,7 +34,7 @@ mkdir -p $EDGEDRIVER_DIR
 edge_version=$(microsoft-edge --version | cut -d' ' -f 3)
 edge_version_major=$(echo $edge_version | cut -d'.' -f 1)
 
-edgedriver_version_url=https://msedgedriver.microsoft.com/LATEST_RELEASE_${edge_version_major}_LINUX"
+edgedriver_version_url="https://msedgedriver.microsoft.com/LATEST_RELEASE_${edge_version_major}_LINUX"
 # Convert a resulting file to normal UTF-8
 edgedriver_latest_version=$(curl -fsSL "$edgedriver_version_url" | iconv -f utf-16 -t utf-8 | tr -d '\r')
 
