@@ -76,5 +76,5 @@ jobs:
           Test-CliTool "kotlin -version"
           Test-CliTool "kotlinc -version"
           Test-CliTool "kotlinc-jvm -version"
-          Test-CliTool "kotlinc-help -version"
+          Test-CliTool "kotlinc-js -help"
           Test-CliTool "kotlinc-js -version"
