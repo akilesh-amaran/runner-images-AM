@@ -1,5 +1,5 @@
 build {
-  sources = ["source.azure-arm.image"]
+  sources = ["source.azure.image"]
   name = "windows-2025"
 
   provisioner "powershell" {
