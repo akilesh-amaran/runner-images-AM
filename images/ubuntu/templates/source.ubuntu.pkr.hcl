@@ -1,4 +1,4 @@
-source "azure-arm" "image" {
+source "azure.compute" "image" {
   client_cert_path                       = var.client_cert_path
   client_id                              = var.client_id
   client_secret                          = var.client_secret
