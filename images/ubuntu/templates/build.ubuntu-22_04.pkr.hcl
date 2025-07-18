@@ -1,5 +1,5 @@
 build {
-  sources = ["source.azure.image"]
+  sources = ["source.azure.compute.image"]
   name = "ubuntu-22_04"
 
   provisioner "shell" {
