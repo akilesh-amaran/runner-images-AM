@@ -1,0 +1,13 @@
+name: Check Ubuntu 24.04 Image Version
+
+on: [push, pull_request]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Show OS release
+        run: cat /etc/os-release
+
+      - name: Show kernel version
+        run: uname -a
