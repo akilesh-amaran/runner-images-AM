@@ -1,0 +1,14 @@
+name: Check Runner Version
+
+on: [push, pull_request]
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Display system info
+        run: |
+          echo "Checking OS version..."
+          uname -a
+          lsb_release -a || cat /etc/os-release
+          echo "Runner Version Check Complete"
