@@ -1,0 +1,30 @@
+name: Windows Build Dummy Test
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.5.3'
+          target: 'desktop'
+
+      - name: Create Dummy Qt Project
+        run: |
+          echo "TEMPLATE = app" > Dummy.pro
+          echo "TARGET = DummyApp" >> Dummy.pro
+          echo "QT += core gui" >> Dummy.pro
+          echo "SOURCES += main.cpp" >> Dummy.pro
+
+          echo "#include <QApplication>\n#include <QLabel>\nint main(int argc, char *argv[]) {\n QApplication app(argc, argv);\n QLabel label(\"Hello, Qt!\");\n label.show();\n return app.exec();\n}" > main.cpp
+
+      - name: Build Dummy Project
+        run: |
+          qmake Dummy.pro
+          mingw32-make -j2
+
+      - name: Verify Build
+        run: dir
