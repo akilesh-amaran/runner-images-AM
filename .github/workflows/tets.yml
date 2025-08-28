@@ -5,19 +5,23 @@ jobs:
   build:
     runs-on: windows-2022
     steps:
+      # Checkout repository
       - uses: actions/checkout@v4
 
+      # Install Qt with MinGW
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.5.3'
           target: 'desktop'
           arch: 'win64_mingw'
 
+      # Create a minimal Qt project
       - name: Create Dummy Qt Project
+        shell: pwsh
         run: |
           echo "TEMPLATE = app" > Dummy.pro
           echo "TARGET = DummyApp" >> Dummy.pro
-          echo "QT += core gui" >> Dummy.pro
+          echo "QT += core gui widgets" >> Dummy.pro
           echo "SOURCES += main.cpp" >> Dummy.pro
 
           @"
@@ -32,10 +36,8 @@ jobs:
           }
           "@ | Out-File -Encoding UTF8 main.cpp
 
+      # Build the dummy project using MinGW
       - name: Build Dummy Project
         run: |
           qmake Dummy.pro
           mingw32-make -j2
-
-      - name: Verify Build
-        run: dir
