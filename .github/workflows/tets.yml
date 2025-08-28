@@ -20,7 +20,17 @@ jobs:
           echo "QT += core gui" >> Dummy.pro
           echo "SOURCES += main.cpp" >> Dummy.pro
 
-          echo "#include <QApplication>\n#include <QLabel>\nint main(int argc, char *argv[]) {\n QApplication app(argc, argv);\n QLabel label(\"Hello, Qt!\");\n label.show();\n return app.exec();\n}" > main.cpp
+          @"
+          #include <QApplication>
+          #include <QLabel>
+
+          int main(int argc, char *argv[]) {
+              QApplication app(argc, argv);
+              QLabel label("Hello, Qt!");
+              label.show();
+              return app.exec();
+          }
+          "@ | Out-File -Encoding UTF8 main.cpp
 
       - name: Build Dummy Project
         run: |
