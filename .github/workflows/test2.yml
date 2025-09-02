@@ -1,4 +1,4 @@
-name: Check Android SDK Packages
+name: Check Android SDK Packages (ubuntu-24.04)
 
 on: [push, pull_request]
 
@@ -6,72 +6,143 @@ jobs:
   list-android-sdks:
     runs-on: ubuntu-24.04
     steps:
-      - name: Check Java version (required by SDK tools)
-        run: java -version || echo "Java not installed"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Ensure Java is available (sdkmanager requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Locate Android SDK and sdkmanager
         id: locate
         run: |
-          # prefer ANDROID_SDK_ROOT, fallback to ANDROID_HOME
-          if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "$ANDROID_SDK_ROOT" ]; then
-            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-            echo "sdksrc=$ANDROID_SDK_ROOT" >> $GITHUB_OUTPUT
-          elif [ -n "${ANDROID_HOME:-}" ] && [ -d "$ANDROID_HOME" ]; then
-            echo "ANDROID_HOME=$ANDROID_HOME"
-            echo "sdksrc=$ANDROID_HOME" >> $GITHUB_OUTPUT
-          else
-            # common default used by these images
-            if [ -d "/usr/local/lib/android/sdk" ]; then
-              echo "Using default /usr/local/lib/android/sdk"
-              echo "sdksrc=/usr/local/lib/android/sdk" >> $GITHUB_OUTPUT
-            else
-              echo "No Android SDK found!"
-              exit 1
+          set -euo pipefail
+          SDK_CANDIDATES=()
+          [ -n "${ANDROID_SDK_ROOT-}" ] && SDK_CANDIDATES+=("$ANDROID_SDK_ROOT")
+          [ -n "${ANDROID_HOME-}" ] && SDK_CANDIDATES+=("$ANDROID_HOME")
+          SDK_CANDIDATES+=("/usr/local/lib/android/sdk")
+
+          SDKSRC=""
+          for p in "${SDK_CANDIDATES[@]}"; do
+            if [ -d "$p" ]; then
+              SDKSRC="$p"
+              break
             fi
+          done
+
+          if [ -z "$SDKSRC" ]; then
+            echo "No Android SDK root found in envs or /usr/local/lib/android/sdk"
+            exit 1
           fi
 
-          # prefer sdkmanager on PATH, otherwise use cmdline-tools location
+          echo "sdksrc=$SDKSRC" >> $GITHUB_OUTPUT
+
+          # locate sdkmanager: prefer PATH, then canonical cmdline-tools path, then search
           if command -v sdkmanager >/dev/null 2>&1; then
-            echo "sdkmanager_on_path=true" >> $GITHUB_OUTPUT
             echo "sdkmanager_cmd=$(command -v sdkmanager)" >> $GITHUB_OUTPUT
-          else
-            SDKMANAGER="$SDKSRC/cmdline-tools/latest/bin/sdkmanager"
-            # expand SDKSRC from GITHUB_OUTPUT usage above
-            SDKMANAGER="$(bash -c 'source /dev/stdin <<< \"$(sed -n \"s/^sdksrc=//p\" \"$GITHUB_OUTPUT\")\"; echo \"$SDKSRC\"')/cmdline-tools/latest/bin/sdkmanager" || true
-            # simpler: compute now from file
-            SDKMANAGER="${SDKSRC:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
-            if [ -x "$SDKMANAGER" ]; then
-              echo "sdkmanager_on_path=false" >> $GITHUB_OUTPUT
-              echo "sdkmanager_cmd=$SDKMANAGER" >> $GITHUB_OUTPUT
-            else
-              echo "sdkmanager not found (expected at $SDKMANAGER)"
-              exit 1
-            fi
+            exit 0
           fi
+
+          CAND="$SDKSRC/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$CAND" ]; then
+            echo "sdkmanager_cmd=$CAND" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          CAND2=$(find "$SDKSRC/cmdline-tools" -type f -name sdkmanager -print -quit 2>/dev/null || true)
+          if [ -n "$CAND2" ]; then
+            echo "sdkmanager_cmd=$CAND2" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "sdkmanager not found under $SDKSRC. Please ensure cmdline-tools are installed." >&2
+          exit 1
 
       - name: List Installed Android SDK Packages (detailed)
         run: |
-          SDKMANAGER_CMD="${{ steps.locate.outputs.sdkmanager_cmd }}"
+          set -euo pipefail
           SDKSRC="${{ steps.locate.outputs.sdksrc }}"
+          SDKMANAGER_CMD="${{ steps.locate.outputs.sdkmanager_cmd }}"
 
           echo "Using SDK root: $SDKSRC"
           echo "Using sdkmanager: $SDKMANAGER_CMD"
+          echo
           echo "---- sdkmanager --version ----"
           "$SDKMANAGER_CMD" --version || true
+          echo
 
           echo "---- Installed Packages (sdkmanager) ----"
-          # sdkmanager prints installed / available; show only installed section
+          # print only the Installed Packages section (if sdkmanager prints both)
           "$SDKMANAGER_CMD" --list 2>/dev/null | sed -n '/Installed Packages:/,/Available Packages:/p' || true
+          echo
 
-          echo "---- Installed directories (quick) ----"
-          [ -d "$SDKSRC/platforms" ] && ls -1 "$SDKSRC/platforms" || echo "no platforms dir"
-          [ -d "$SDKSRC/build-tools" ] && ls -1 "$SDKSRC/build-tools" || echo "no build-tools dir"
-          [ -d "$SDKSRC/ndk" ] && ls -1 "$SDKSRC/ndk" || echo "no ndk dir"
-          [ -d "$SDKSRC/platform-tools" ] && ls -1 "$SDKSRC/platform-tools" || echo "no platform-tools dir"
+          echo "---- Available Packages (platforms) matching android-33 ----"
+          "$SDKMANAGER_CMD" --list 2>/dev/null | grep -i 'platforms;android-33' || echo "none found"
+          echo
 
-          echo "---- adb version (if present) ----"
+          echo "---- Platforms stored on disk ----"
+          if [ -d "$SDKSRC/platforms" ]; then
+            ls -1 "$SDKSRC/platforms" || true
+          else
+            echo "no platforms dir"
+          fi
+          echo
+
+          echo "---- Build-tools on disk ----"
+          if [ -d "$SDKSRC/build-tools" ]; then
+            ls -1 "$SDKSRC/build-tools" || true
+          else
+            echo "no build-tools dir"
+          fi
+          echo
+
+          echo "---- NDK directories ----"
+          if [ -d "$SDKSRC/ndk" ]; then
+            ls -1 "$SDKSRC/ndk" || true
+          else
+            echo "no ndk dir"
+          fi
+          echo
+
+          echo "---- platform-tools (adb) ----"
           if [ -x "$SDKSRC/platform-tools/adb" ]; then
             "$SDKSRC/platform-tools/adb" --version || true
           else
             command -v adb >/dev/null 2>&1 && adb --version || echo "adb not found"
+          fi
+          echo
+
+          echo "---- JSON summary (installed ids) ----"
+          INSTALLED_RAW=$("$SDKMANAGER_CMD" --list 2>/dev/null | sed -n '/Installed Packages:/,/Available Packages:/p' || true)
+          # extract left column (package id) and filter common kinds
+          INSTALLED_IDS=$(printf "%s\n" "$INSTALLED_RAW" | awk -F '|' '{print $1}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -E 'platforms;|build-tools;|ndk;|platform-tools' || true)
+          printf '{"sdk_root":"%s","installed":[' "$SDKSRC"
+          first=true
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            if $first; then
+              printf '\n  "%s"' "$line"
+              first=false
+            else
+              printf ',\n  "%s"' "$line"
+            fi
+          done <<< "$INSTALLED_IDS"
+          printf '\n]}\n'
+
+      - name: Check for android-33-ext4/ext5 specifically
+        run: |
+          set -euo pipefail
+          SDKSRC="${{ steps.locate.outputs.sdksrc }}"
+          SDKMANAGER_CMD="${{ steps.locate.outputs.sdkmanager_cmd }}"
+
+          echo "Checking sdkmanager available/installed entries for android-33-ext4/ext5"
+          "$SDKMANAGER_CMD" --list 2>/dev/null | grep -E -i 'platforms;android-33-ext4|platforms;android-33-ext5' || echo "no android-33-ext4/ext5 entries found in sdkmanager output"
+
+          echo "Checking on-disk platform dirs for android-33*"
+          if [ -d "$SDKSRC/platforms" ]; then
+            ls -1 "$SDKSRC/platforms" | grep -i 'android-33' || echo "no android-33 dirs on disk"
+          else
+            echo "no platforms dir"
           fi
