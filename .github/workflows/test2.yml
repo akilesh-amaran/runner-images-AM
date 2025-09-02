@@ -1,0 +1,77 @@
+name: Check Android SDK Packages
+
+on: [push, pull_request]
+
+jobs:
+  list-android-sdks:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check Java version (required by SDK tools)
+        run: java -version || echo "Java not installed"
+
+      - name: Locate Android SDK and sdkmanager
+        id: locate
+        run: |
+          # prefer ANDROID_SDK_ROOT, fallback to ANDROID_HOME
+          if [ -n "${ANDROID_SDK_ROOT:-}" ] && [ -d "$ANDROID_SDK_ROOT" ]; then
+            echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+            echo "sdksrc=$ANDROID_SDK_ROOT" >> $GITHUB_OUTPUT
+          elif [ -n "${ANDROID_HOME:-}" ] && [ -d "$ANDROID_HOME" ]; then
+            echo "ANDROID_HOME=$ANDROID_HOME"
+            echo "sdksrc=$ANDROID_HOME" >> $GITHUB_OUTPUT
+          else
+            # common default used by these images
+            if [ -d "/usr/local/lib/android/sdk" ]; then
+              echo "Using default /usr/local/lib/android/sdk"
+              echo "sdksrc=/usr/local/lib/android/sdk" >> $GITHUB_OUTPUT
+            else
+              echo "No Android SDK found!"
+              exit 1
+            fi
+          fi
+
+          # prefer sdkmanager on PATH, otherwise use cmdline-tools location
+          if command -v sdkmanager >/dev/null 2>&1; then
+            echo "sdkmanager_on_path=true" >> $GITHUB_OUTPUT
+            echo "sdkmanager_cmd=$(command -v sdkmanager)" >> $GITHUB_OUTPUT
+          else
+            SDKMANAGER="$SDKSRC/cmdline-tools/latest/bin/sdkmanager"
+            # expand SDKSRC from GITHUB_OUTPUT usage above
+            SDKMANAGER="$(bash -c 'source /dev/stdin <<< \"$(sed -n \"s/^sdksrc=//p\" \"$GITHUB_OUTPUT\")\"; echo \"$SDKSRC\"')/cmdline-tools/latest/bin/sdkmanager" || true
+            # simpler: compute now from file
+            SDKMANAGER="${SDKSRC:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager"
+            if [ -x "$SDKMANAGER" ]; then
+              echo "sdkmanager_on_path=false" >> $GITHUB_OUTPUT
+              echo "sdkmanager_cmd=$SDKMANAGER" >> $GITHUB_OUTPUT
+            else
+              echo "sdkmanager not found (expected at $SDKMANAGER)"
+              exit 1
+            fi
+          fi
+
+      - name: List Installed Android SDK Packages (detailed)
+        run: |
+          SDKMANAGER_CMD="${{ steps.locate.outputs.sdkmanager_cmd }}"
+          SDKSRC="${{ steps.locate.outputs.sdksrc }}"
+
+          echo "Using SDK root: $SDKSRC"
+          echo "Using sdkmanager: $SDKMANAGER_CMD"
+          echo "---- sdkmanager --version ----"
+          "$SDKMANAGER_CMD" --version || true
+
+          echo "---- Installed Packages (sdkmanager) ----"
+          # sdkmanager prints installed / available; show only installed section
+          "$SDKMANAGER_CMD" --list 2>/dev/null | sed -n '/Installed Packages:/,/Available Packages:/p' || true
+
+          echo "---- Installed directories (quick) ----"
+          [ -d "$SDKSRC/platforms" ] && ls -1 "$SDKSRC/platforms" || echo "no platforms dir"
+          [ -d "$SDKSRC/build-tools" ] && ls -1 "$SDKSRC/build-tools" || echo "no build-tools dir"
+          [ -d "$SDKSRC/ndk" ] && ls -1 "$SDKSRC/ndk" || echo "no ndk dir"
+          [ -d "$SDKSRC/platform-tools" ] && ls -1 "$SDKSRC/platform-tools" || echo "no platform-tools dir"
+
+          echo "---- adb version (if present) ----"
+          if [ -x "$SDKSRC/platform-tools/adb" ]; then
+            "$SDKSRC/platform-tools/adb" --version || true
+          else
+            command -v adb >/dev/null 2>&1 && adb --version || echo "adb not found"
+          fi
