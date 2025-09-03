@@ -21,10 +21,16 @@ add_filtered_installation_components() {
             if (( item_version >= minimum_version )); then
                 components+=("$item")
             fi
-        else
-            # For other packages, use existing version extraction and comparison
-            item_version=$(echo "${item##*[-;]}")
+        elif [[ $item =~ build-tools\;([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            # For build-tools, extract full version (e.g., 34.0.0)
+            item_version="${BASH_REMATCH[1]}"
             if [[ "$(printf "%s\n%s\n" "$minimum_version" "$item_version" | sort -V | head -n1)" == "$minimum_version" ]]; then
+                components+=("$item")
+            fi
+        else
+            # For all other packages
+            item_version=$(echo "${item##*[-;]}")
+            if [[ -n "$item_version" ]] && [[ "$(printf "%s\n%s\n" "$minimum_version" "$item_version" | sort -V | head -n1)" == "$minimum_version" ]]; then
                 components+=("$item")
             fi
         fi
