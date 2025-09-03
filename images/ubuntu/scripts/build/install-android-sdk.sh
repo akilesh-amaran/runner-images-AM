@@ -15,7 +15,7 @@ add_filtered_installation_components() {
     local tools_array=("$@")
 
     for item in "${tools_array[@]}"; do
-        if [[ $item =~ platforms;android-([0-9]+) ]]; then
+        if [[ $item =~ platforms\;android-([0-9]+) ]]; then
             item_version="${BASH_REMATCH[1]}"
             if (( item_version >= minimum_version )); then
                 components+=("$item")
