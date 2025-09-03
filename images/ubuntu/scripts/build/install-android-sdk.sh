@@ -14,13 +14,17 @@ add_filtered_installation_components() {
     shift
     local tools_array=("$@")
 
-    for item in ${tools_array[@]}; do
-        # Take the last version number that appears after the last '-' or ';'
-        item_version=$(echo "$item" | grep -oP '(?<=[-;])[0-9.]+')
-
-        # Semver 'comparison'. Add item to components array, if item's version is greater than or equal to minimum version
-        if [[ "$(printf "${minimum_version}\n${item_version}\n" | sort -V | head -n1)" == "$minimum_version" ]]; then
-            components+=($item)
+    for item in "${tools_array[@]}"; do
+        if [[ $item =~ platforms;android-([0-9]+) ]]; then
+            item_version="${BASH_REMATCH[1]}"
+            if (( item_version >= minimum_version )); then
+                components+=("$item")
+            fi
+        else
+            item_version=$(echo "$item" | grep -oP '(?<=[-;])[0-9.]+')
+            if [[ -n "$item_version" ]] && [[ "$(printf "%s\n%s\n" "$minimum_version" "$item_version" | sort -V | head -n1)" == "$minimum_version" ]]; then
+                components+=("$item")
+            fi
         fi
     done
 }
