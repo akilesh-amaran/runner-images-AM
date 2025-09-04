@@ -14,13 +14,25 @@ add_filtered_installation_components() {
     shift
     local tools_array=("$@")
 
-    for item in ${tools_array[@]}; do
-        # Take the last argument after splitting string by ';'' and '-''
-        item_version=$(echo "${item##*[-;]}")
-
-        # Semver 'comparison'. Add item to components array, if item's version is greater than or equal to minimum version
-        if [[ "$(printf "${minimum_version}\n${item_version}\n" | sort -V | head -n1)" == "$minimum_version" ]]; then
-            components+=($item)
+    for item in "${tools_array[@]}"; do
+        if [[ $item =~ platforms\;android-([0-9]+) ]]; then
+            # For platforms, extract just the numeric version
+            item_version="${BASH_REMATCH[1]}"
+            if (( item_version >= minimum_version )); then
+                components+=("$item")
+            fi
+        elif [[ $item =~ build-tools\;([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            # For build-tools, extract full version (e.g., 34.0.0)
+            item_version="${BASH_REMATCH[1]}"
+            if [[ "$(printf "%s\n%s\n" "$minimum_version" "$item_version" | sort -V | head -n1)" == "$minimum_version" ]]; then
+                components+=("$item")
+            fi
+        else
+            # For other packages
+            item_version=$(echo "$item" | grep -oP '(?<=;)[0-9]+(\.[0-9]+)*')
+            if [[ -n "$item_version" ]] && [[ "$(printf "%s\n%s\n" "$minimum_version" "$item_version" | sort -V | head -n1)" == "$minimum_version" ]]; then
+                components+=("$item")
+            fi
         fi
     done
 }
