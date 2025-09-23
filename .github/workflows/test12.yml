@@ -1,0 +1,31 @@
+name: Start PostgreSQL on Windows
+
+on: [push, pull_request]
+
+jobs:
+  database:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL
+        run: choco install postgresql15 --params '/Password:Password12!' -y
+        shell: powershell
+
+      - name: Initialize PostgreSQL cluster
+        run: |
+          $pgBin = "C:\Program Files\PostgreSQL\15\bin"
+          $pgData = "C:\pgdata"
+          New-Item -ItemType Directory -Force -Path $pgData | Out-Null
+          & "$pgBin\initdb.exe" -D $pgData -U postgres -A password --pwfile=<(echo Password12!)
+          echo "PGBIN=$pgBin" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "PGDATA=$pgData" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      - name: Start PostgreSQL
+        run: |
+          Push-Location $env:PGBIN
+          & ./pg_ctl.exe start -D $env:PGDATA -l logfile
+          & ./pg_isready.exe -h localhost -p 5432
+        shell: pwsh
