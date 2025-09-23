@@ -17,9 +17,13 @@ jobs:
         run: |
           $pgBin = "C:\Program Files\PostgreSQL\15\bin"
           $pgData = "C:\pgdata"
+          $pwFile = "$env:TEMP\pgpass.txt"
+      
+          "Password12!" | Out-File -FilePath $pwFile -Encoding ascii -NoNewline
           New-Item -ItemType Directory -Force -Path $pgData | Out-Null
-          & "$pgBin\initdb.exe" -D $pgData -U postgres -A password --pwfile=<(echo Password12!)
-          echo "PGBIN=$pgBin" | Out-File -FilePath $env:GITHUB_ENV -Append
+          & "$pgBin\initdb.exe" -D $pgData -U postgres -A password --pwfile=$pwFile
+      
+          echo "PGBIN=$pgBin"   | Out-File -FilePath $env:GITHUB_ENV -Append
           echo "PGDATA=$pgData" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
 
